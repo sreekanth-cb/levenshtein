@@ -72,16 +72,16 @@ func (d *DFA) IsMatch(state int) bool {
 	//typ := reflect.TypeOf(dist).String()
 	//	log.Printf("typ %s dist %d state %d", typ, dist.distance(), state)
 	r := Exact{d: dist.distance()}
-	if /*typ == TypeExact &&*/ reflect.DeepEqual(dist, r) && dist.distance() == uint8(d.ed) {
+	if /*typ == TypeExact &&*/ reflect.DeepEqual(dist, r) /*&& dist.distance() == uint8(d.ed)*/ {
 		return true
 	}
 	return false
 }
 
 func (d *DFA) CanMatch(state int) bool {
-	//log.Printf("state %d d %d", state, d.distance(state).distance())
-
-	return state != int(SinkState) && uint8(d.ed) >= d.distance(state).distance()
+	//log.Printf("state %d d %d", state, d.numStates())
+	return state > 0 && state < d.numStates()
+	//return state != int(SinkState) && uint8(d.ed) >= d.distance(state).distance()
 }
 
 func (d *DFA) Accept(state int, b byte) int {

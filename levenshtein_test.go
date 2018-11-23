@@ -15,14 +15,16 @@
 package levenshtein2
 
 import (
+	"bytes"
 	"testing"
 )
 
 func TestLevenshtein(t *testing.T) {
 
 	hash := make(map[uint8]LevenshteinAutomatonBuilder, 4)
+	hash[0] = NewLevenshteinAutomatonBuilder(0, false)
 	hash[1] = NewLevenshteinAutomatonBuilder(1, false)
-	//hash[2] = newLevenshteinAutomatonBuilder(2, false)
+	hash[2] = NewLevenshteinAutomatonBuilder(2, false)
 	//hash[3] = newLevenshteinAutomatonBuilder(3, false)
 
 	tests := []struct {
@@ -193,11 +195,35 @@ func TestLevenshtein(t *testing.T) {
 			isMatch:  true,
 			canMatch: true,
 		},
+		{
+			desc:     "cate/1 - cate",
+			query:    "cate",
+			distance: 1,
+			seq:      []byte{'c', 'a', 't', 'e'},
+			isMatch:  true,
+			canMatch: true,
+		},
+		{
+			desc:     "cater/1 - cate",
+			query:    "cater",
+			distance: 1,
+			seq:      []byte{'c', 'a', 't', 'e'},
+			isMatch:  true,
+			canMatch: true,
+		},
+		{
+			desc:     "catered/1 - cater",
+			query:    "catered",
+			distance: 2,
+			seq:      []byte{'c', 'a', 't', 'e', 'r'},
+			isMatch:  true,
+			canMatch: true,
+		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			l := hash[1].pDfa.buildDfa(test.query, test.distance, false)
+			l := hash[test.distance].pDfa.buildDfa(test.query, test.distance, false)
 
 			s := l.Start()
 			for _, b := range test.seq {
@@ -252,7 +278,7 @@ func TestLevenshteinNfa(t *testing.T) {
 	testLevenshteinNfaUtil("aab", "ab", 1, t)
 }
 
-func TestDeadState(t *testing.T) {
+/*func TestDeadState(t *testing.T) {
 	nfa := newLevenshtein(2, false)
 	pdfa := fromNfa(nfa)
 	dfa := pdfa.buildDfa("abcdefghijklmnop", 0, false)
@@ -270,7 +296,7 @@ func TestDeadState(t *testing.T) {
 	if state != 0 {
 		t.Errorf("expected state: 0, actual: %d", state)
 	}
-}
+}*/
 
 func TestLevenshteinParametricDfa(t *testing.T) {
 	lev := newLevenshtein(1, true)
@@ -295,6 +321,16 @@ func TestLevenshteinParametricDfa(t *testing.T) {
 	}
 
 	rd = dfa.eval([]byte("a"))
+	if rd.distance() != 2 {
+		t.Errorf("expected distance 2, actual: %d", rd.distance())
+	}
+
+	rd = dfa.eval([]byte("abcd"))
+	if rd.distance() != 1 {
+		t.Errorf("expected distance 1, actual: %d", rd.distance())
+	}
+
+	rd = dfa.eval([]byte("abdd"))
 	if rd.distance() != 2 {
 		t.Errorf("expected distance 2, actual: %d", rd.distance())
 	}
@@ -447,5 +483,54 @@ func BenchmarkNewED2(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		pDfa.buildDfa("martymarty", 2, false)
+	}
+}
+
+var termSeparator byte = 0xff
+var termSeparatorSplitSlice = []byte{termSeparator}
+
+var data []byte
+
+func BenchmarkIndex(b *testing.B) {
+	data = append(data, []byte("sreekanthsreekanth")...)
+	data = append(data, termSeparatorSplitSlice...)
+	data = append(data, []byte("s345reekanthsreekanth")...)
+	data = append(data, termSeparatorSplitSlice...)
+	data = append(data, []byte("sd4354")...)
+	data = append(data, termSeparatorSplitSlice...)
+	data = append(data, []byte("sreeka22342nthsreekanth")...)
+	data = append(data, termSeparatorSplitSlice...)
+	data = append(data, []byte("234333")...)
+
+	b.ResetTimer()
+	for j := 0; j < b.N; j++ {
+		input := data
+		for {
+			i := bytes.Index(input, termSeparatorSplitSlice)
+			if i < 0 {
+				break
+			}
+			input = input[i+1:]
+		}
+	}
+}
+
+func BenchmarkSplit(b *testing.B) {
+	data = append(data, []byte("sreekanthsreekanth")...)
+	data = append(data, termSeparatorSplitSlice...)
+	data = append(data, []byte("s345reekanthsreekanth")...)
+	data = append(data, termSeparatorSplitSlice...)
+	data = append(data, []byte("sd4354")...)
+	data = append(data, termSeparatorSplitSlice...)
+	data = append(data, []byte("sreeka22342nthsreekanth")...)
+	data = append(data, termSeparatorSplitSlice...)
+	data = append(data, []byte("234333")...)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		sets := bytes.Split(data, termSeparatorSplitSlice)
+		if len(sets) != 5 {
+
+		}
 	}
 }
