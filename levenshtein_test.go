@@ -477,7 +477,7 @@ func BenchmarkNewED1(b *testing.B) {
 		dfa := pDfa.buildDfa("coucibase", 1, false)
 		ed := dfa.eval([]byte(query))
 		if ed.distance() != 1 {
-			b.Errorf("expected distance 0, actual: %d", ed.distance())
+			b.Errorf("expected distance 1, actual: %d", ed.distance())
 		}
 
 	}
@@ -493,8 +493,7 @@ func BenchmarkNewED2(b *testing.B) {
 		dfa := pDfa.buildDfa("couchbases", 2, false)
 		ed := dfa.eval([]byte(query))
 		if ed.distance() != 2 {
-			b.Errorf("expected distance 0, actual: %d", ed.distance())
+			b.Errorf("expected distance 2, actual: %d", ed.distance())
 		}
 	}
 }
-
