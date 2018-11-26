@@ -15,7 +15,6 @@
 package levenshtein2
 
 import (
-	"bytes"
 	"testing"
 )
 
@@ -469,68 +468,33 @@ func (ts *TestSample) withNumChars(numChars int, letters string, dp bool) *TestS
 }
 
 func BenchmarkNewED1(b *testing.B) {
-	nfa := newLevenshtein(1, false)
+	nfa := newLevenshtein(1, true)
 	pDfa := fromNfa(nfa)
-	b.ResetTimer()
+	//b.ResetTimer()
+
+	query := "couchbase"
 	for i := 0; i < b.N; i++ {
-		pDfa.buildDfa("martymarty", 1, false)
+		dfa := pDfa.buildDfa("coucibase", 1, false)
+		ed := dfa.eval([]byte(query))
+		if ed.distance() != 1 {
+			b.Errorf("expected distance 0, actual: %d", ed.distance())
+		}
+
 	}
 }
 
 func BenchmarkNewED2(b *testing.B) {
 	nfa := newLevenshtein(2, false)
 	pDfa := fromNfa(nfa)
-	b.ResetTimer()
+	//b.ResetTimer()
+
+	query := "couchbasefts"
 	for i := 0; i < b.N; i++ {
-		pDfa.buildDfa("martymarty", 2, false)
-	}
-}
-
-var termSeparator byte = 0xff
-var termSeparatorSplitSlice = []byte{termSeparator}
-
-var data []byte
-
-func BenchmarkIndex(b *testing.B) {
-	data = append(data, []byte("sreekanthsreekanth")...)
-	data = append(data, termSeparatorSplitSlice...)
-	data = append(data, []byte("s345reekanthsreekanth")...)
-	data = append(data, termSeparatorSplitSlice...)
-	data = append(data, []byte("sd4354")...)
-	data = append(data, termSeparatorSplitSlice...)
-	data = append(data, []byte("sreeka22342nthsreekanth")...)
-	data = append(data, termSeparatorSplitSlice...)
-	data = append(data, []byte("234333")...)
-
-	b.ResetTimer()
-	for j := 0; j < b.N; j++ {
-		input := data
-		for {
-			i := bytes.Index(input, termSeparatorSplitSlice)
-			if i < 0 {
-				break
-			}
-			input = input[i+1:]
+		dfa := pDfa.buildDfa("couchbases", 2, false)
+		ed := dfa.eval([]byte(query))
+		if ed.distance() != 2 {
+			b.Errorf("expected distance 0, actual: %d", ed.distance())
 		}
 	}
 }
 
-func BenchmarkSplit(b *testing.B) {
-	data = append(data, []byte("sreekanthsreekanth")...)
-	data = append(data, termSeparatorSplitSlice...)
-	data = append(data, []byte("s345reekanthsreekanth")...)
-	data = append(data, termSeparatorSplitSlice...)
-	data = append(data, []byte("sd4354")...)
-	data = append(data, termSeparatorSplitSlice...)
-	data = append(data, []byte("sreeka22342nthsreekanth")...)
-	data = append(data, termSeparatorSplitSlice...)
-	data = append(data, []byte("234333")...)
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		sets := bytes.Split(data, termSeparatorSplitSlice)
-		if len(sets) != 5 {
-
-		}
-	}
-}
