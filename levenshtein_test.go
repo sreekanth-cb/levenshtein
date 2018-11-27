@@ -372,7 +372,7 @@ func TestLevenshteinDfa(t *testing.T) {
 	nfa := newLevenshtein(2, false)
 	pDfa := fromNfa(nfa)
 	dfa := pDfa.buildDfa("abcabcaaabc", 2, false)
-	if dfa.numStates() != 273 {
+	if dfa.numStates() != 372 {
 		t.Errorf("expected number of states: 273, actual: %d", dfa.numStates())
 	}
 }

@@ -169,9 +169,9 @@ type Utf8DFABuilder struct {
 
 func withMaxStates(maxStates uint32) *Utf8DFABuilder {
 	rv := &Utf8DFABuilder{
-		index:        make([]uint32, maxStates*4+3),
-		distances:    make([]Distance, 0, 100),
-		transitions:  make([][256]uint32, 0, 100),
+		index:        make([]uint32, maxStates*2+100),
+		distances:    make([]Distance, maxStates),
+		transitions:  make([][256]uint32, maxStates),
 		maxNumStates: maxStates,
 	}
 
@@ -185,35 +185,42 @@ func withMaxStates(maxStates uint32) *Utf8DFABuilder {
 func (dfab *Utf8DFABuilder) allocate() uint32 {
 	newState := dfab.numStates
 	dfab.numStates++
-	//log.Printf("extending distances from %d", len(dfab.distances))
-	dfab.distances = append(dfab.distances, Atleast{d: 255})
-	//log.Printf("to %d", len(dfab.distances))
-	// TODO
-	var transition [256]uint32
-	/*if int(newState) >= len(dfab.transitions) {
-		transitions := make([][256]uint32, newState+1)
-		dfab.transitions = append(dfab.transitions, transitions...)
-	}  else {*/
-	dfab.transitions = append(dfab.transitions, transition)
-	//}
+
+	if int(newState) >= cap(dfab.distances) {
+		distances := make([]Distance, int(newState)*2)
+		copy(distances, dfab.distances)
+		dfab.distances = distances
+	}
+	dfab.distances[newState] = Atleast{d: 255}
+
+	if int(newState) >= cap(dfab.transitions) {
+		transitions := make([][256]uint32, int(newState)*2)
+		copy(transitions, dfab.transitions)
+		dfab.transitions = transitions
+	}
+	dfab.transitions[newState] = [256]uint32{}
 
 	return newState
 }
 
 func (dfab *Utf8DFABuilder) getOrAllocate(state Utf8StateId) uint32 {
+	if int(state) >= cap(dfab.index) {
+		cloneIndex := make([]uint32, int(state)*2)
+		copy(cloneIndex, dfab.index)
+		dfab.index = cloneIndex
+	}
 	if dfab.index[state] != math.MaxUint32 {
 		return dfab.index[state]
 	}
+
 	nstate := dfab.allocate()
 	dfab.index[state] = nstate
-	//	log.Printf("allocate dfab.distances %+v nstate %d", dfab.distances, nstate)
-	//log.Printf("allocate dfab.transitions %d nstate %d", len(dfab.transitions), nstate)
+
 	return nstate
 }
 
 func (dfab *Utf8DFABuilder) setInitialState(iState uint32) {
 	decodedID := dfab.getOrAllocate(original(iState))
-	//log.Printf("decodedID %d", decodedID)
 	dfab.initialState = decodedID
 }
 
