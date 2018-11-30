@@ -6,12 +6,11 @@ This package makes it fast and simple to build a finite determinic automaton tha
 # Sample usage:
 
 ```
-
-nfa := newLevenshtein(2, false)
-pDfa := fromNfa(nfa)
+// build a re-usable builder
+lb := NewLevenshteinAutomatonBuilder(2, false)
 
 origTerm := "couchbasefts"
-dfa := pDfa.buildDfa("couchbases", 2, false)
+dfa := lb.BuildDfa("couchbases", 2)
 ed := dfa.eval([]byte(origTerm))
 if ed.distance() != 2 {
 	log.Errorf("expected distance 2, actual: %d", ed.distance())
