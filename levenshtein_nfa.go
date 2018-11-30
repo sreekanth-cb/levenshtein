@@ -19,9 +19,6 @@ import (
 	"sort"
 )
 
-var TypeExact = "levenshtein2.Exact"
-var TypeAtleast = "levenshtein2.Atleast"
-
 /// Levenshtein Distance computed by a Levenshtein Automaton.
 ///
 /// Levenshtein automata can only compute the exact Levenshtein distance
@@ -110,7 +107,7 @@ func (ms *MultiState) normalize() uint32 {
 	if minOffset == uint32(math.MaxUint32) {
 		minOffset = 0
 	}
-	//log.Printf("ms.states %d minOf %d", len(ms.states), minOffset)
+
 	for i := 0; i < len(ms.states); i++ {
 		ms.states[i].Offset -= minOffset
 	}
@@ -189,11 +186,11 @@ func (la *LevenshteinNFA) initialStates() *MultiState {
 	return &ms
 }
 
-func (la *LevenshteinNFA) multistateDistance(ms *MultiState, queryLen uint32) Distance {
+func (la *LevenshteinNFA) multistateDistance(ms *MultiState,
+	queryLen uint32) Distance {
 	minDistance := Atleast{d: la.mDistance + 1}
 	for _, s := range ms.states {
 		t := s.Distance + uint8(dist(queryLen, s.Offset))
-		//log.Printf("t %d", t)
 		if t <= uint8(la.mDistance) {
 			if minDistance.distance() > t {
 				minDistance.d = t
@@ -202,11 +199,9 @@ func (la *LevenshteinNFA) multistateDistance(ms *MultiState, queryLen uint32) Di
 	}
 
 	if minDistance.distance() == la.mDistance+1 {
-		//log.Printf("minDistance %+v", minDistance)
 		return Atleast{d: la.mDistance + 1}
 	}
 
-	//log.Printf("f minDistance %+v", minDistance)
 	return minDistance
 }
 
@@ -283,13 +278,14 @@ func (la *LevenshteinNFA) transition(cState *MultiState,
 
 func (la *LevenshteinNFA) computeDistance(query, other []rune) Distance {
 	cState := la.initialStates()
-	nState := newMultiState() //cState.empty()
+	nState := newMultiState()
+
 	for _, i := range other {
 		nState.Clear()
 		chi := characteristicVector(query, i)
 		la.transition(cState, nState, chi)
 		cState, nState = nState, cState
 	}
-	//log.Printf("\n\n cState %+v qLen %d", cState, len(query))
+
 	return la.multistateDistance(cState, uint32(len(query)))
 }

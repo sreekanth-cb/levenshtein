@@ -24,7 +24,6 @@ func TestLevenshtein(t *testing.T) {
 	hash[0] = NewLevenshteinAutomatonBuilder(0, false)
 	hash[1] = NewLevenshteinAutomatonBuilder(1, false)
 	hash[2] = NewLevenshteinAutomatonBuilder(2, false)
-	//hash[3] = newLevenshteinAutomatonBuilder(3, false)
 
 	tests := []struct {
 		desc     string
@@ -222,7 +221,7 @@ func TestLevenshtein(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			l := hash[test.distance].pDfa.buildDfa(test.query, test.distance, false)
+			l := hash[uint8(test.distance)].pDfa.buildDfa(test.query, test.distance, false)
 
 			s := l.Start()
 			for _, b := range test.seq {
@@ -254,7 +253,7 @@ func makeDistance(d uint8, md uint8) Distance {
 
 func testLevenshteinNfaUtil(left, right string, ed uint8, t *testing.T) {
 	for _, d := range []uint8{0, 1, 2, 3} {
-		expectedDistance := makeDistance(ed, d)
+		expectedDistance := makeDistance(ed, uint8(d))
 		lev := newLevenshtein(d, false)
 		testSymmetric(lev, left, right, expectedDistance, t)
 	}
@@ -372,7 +371,7 @@ func TestLevenshteinDfa(t *testing.T) {
 	nfa := newLevenshtein(2, false)
 	pDfa := fromNfa(nfa)
 	dfa := pDfa.buildDfa("abcabcaaabc", 2, false)
-	if dfa.numStates() != 372 {
+	if dfa.numStates() != 273 {
 		t.Errorf("expected number of states: 273, actual: %d", dfa.numStates())
 	}
 }
@@ -409,6 +408,18 @@ func TestSimple(t *testing.T) {
 	ed = dfa.eval([]byte("abccdef"))
 	if ed.distance() != 1 {
 		t.Errorf("expected distance 1, actual: %d", ed.distance())
+	}
+}
+
+func TestSimpleED0(t *testing.T) {
+	query := "simmer"
+	nfa := newLevenshtein(1, true)
+	pDfa := fromNfa(nfa)
+	dfa := pDfa.buildDfa(query, 1, false)
+
+	ed := dfa.eval([]byte("summeri"))
+	if ed.distance() != 2 {
+		t.Errorf("expected distance 0, actual: %d", ed.distance())
 	}
 }
 
@@ -467,14 +478,12 @@ func (ts *TestSample) withNumChars(numChars int, letters string, dp bool) *TestS
 	return nil
 }
 
-func BenchmarkNewED1(b *testing.B) {
-	nfa := newLevenshtein(1, true)
-	pDfa := fromNfa(nfa)
-	//b.ResetTimer()
+func BenchmarkNewEvalEditDistance1(b *testing.B) {
+	lb := NewLevenshteinAutomatonBuilder(1, true)
 
-	query := "couchbase"
+	query := "coucibase"
 	for i := 0; i < b.N; i++ {
-		dfa := pDfa.buildDfa("coucibase", 1, false)
+		dfa := lb.BuildDfa("couchbase", 1)
 		ed := dfa.eval([]byte(query))
 		if ed.distance() != 1 {
 			b.Errorf("expected distance 1, actual: %d", ed.distance())
@@ -483,17 +492,53 @@ func BenchmarkNewED1(b *testing.B) {
 	}
 }
 
-func BenchmarkNewED2(b *testing.B) {
-	nfa := newLevenshtein(2, false)
-	pDfa := fromNfa(nfa)
-	//b.ResetTimer()
+func BenchmarkNewEvalEditDistance2(b *testing.B) {
+	lb := NewLevenshteinAutomatonBuilder(2, false)
 
 	query := "couchbasefts"
 	for i := 0; i < b.N; i++ {
-		dfa := pDfa.buildDfa("couchbases", 2, false)
+		dfa := lb.BuildDfa("couchbases", 2)
 		ed := dfa.eval([]byte(query))
 		if ed.distance() != 2 {
 			b.Errorf("expected distance 2, actual: %d", ed.distance())
 		}
 	}
 }
+
+func BenchmarkNewEditDistance1(b *testing.B) {
+	lb := NewLevenshteinAutomatonBuilder(1, true)
+
+	query := "coucibase"
+	for i := 0; i < b.N; i++ {
+		dfa := lb.BuildDfa("couchbase", 1)
+
+		state := dfa.initialState()
+		for _, b := range []byte(query) {
+			state = dfa.transition(state, b)
+		}
+
+		if !dfa.IsMatch(state) {
+			b.Errorf("expected isMatch %t, got %t", true, !dfa.IsMatch(state))
+		}
+
+	}
+}
+
+func BenchmarkNewEditDistance2(b *testing.B) {
+	lb := NewLevenshteinAutomatonBuilder(2, false)
+
+	query := "couchbasefts"
+	for i := 0; i < b.N; i++ {
+
+		dfa := lb.BuildDfa("couchbases", 2)
+		state := dfa.initialState()
+		for _, b := range []byte(query) {
+			state = dfa.transition(state, b)
+		}
+
+		if !dfa.IsMatch(state) {
+			b.Errorf("expected isMatch %t, got %t", true, !dfa.IsMatch(state))
+		}
+	}
+}
+

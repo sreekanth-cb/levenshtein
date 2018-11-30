@@ -17,27 +17,25 @@ package levenshtein2
 import (
 	"fmt"
 	"math"
-	"reflect"
 )
 
 const SinkState = uint32(0)
 
 type DFA struct {
-	transitions   [][256]uint32
-	distances     []Distance
-	initial_state int
-	ed            uint8
+	transitions [][256]uint32
+	distances   []Distance
+	initState   int
+	ed          uint8
 }
 
 /// Returns the initial state
 func (d *DFA) initialState() int {
-	return d.initial_state
+	return d.initState
 }
 
 /// Returns the Levenshtein distance associated to the
 /// current state.
 func (d *DFA) distance(stateId int) Distance {
-	//log.Printf("distances %+v", d.distances)
 	return d.distances[stateId]
 }
 
@@ -53,13 +51,11 @@ func (d *DFA) transition(fromState int, b uint8) int {
 
 func (d *DFA) eval(bytes []uint8) Distance {
 	state := d.initialState()
-	//log.Printf("eval state %+v", state)
+
 	for _, b := range bytes {
-		///	log.Printf("b %d", b)
 		state = d.transition(state, b)
 	}
-	//log.Printf("eval final state %+v", state)
-	//log.Printf("eval distance len %d", len(d.distances))
+
 	return d.distance(state)
 }
 
@@ -68,20 +64,14 @@ func (d *DFA) Start() int {
 }
 
 func (d *DFA) IsMatch(state int) bool {
-	dist := d.distance(state)
-	//typ := reflect.TypeOf(dist).String()
-	//	log.Printf("typ %s dist %d state %d", typ, dist.distance(), state)
-	r := Exact{d: dist.distance()}
-	if /*typ == TypeExact &&*/ reflect.DeepEqual(dist, r) /*&& dist.distance() == uint8(d.ed)*/ {
+	if _, ok := d.distance(state).(Exact); ok {
 		return true
 	}
 	return false
 }
 
 func (d *DFA) CanMatch(state int) bool {
-	//log.Printf("state %d d %d", state, d.numStates())
 	return state > 0 && state < d.numStates()
-	//return state != int(SinkState) && uint8(d.ed) >= d.distance(state).distance()
 }
 
 func (d *DFA) Accept(state int, b byte) int {
@@ -114,7 +104,6 @@ type Utf8DFAStateBuilder struct {
 
 func (sb *Utf8DFAStateBuilder) addTransitionID(fromStateID uint32, b uint8,
 	toStateID uint32) {
-	//log.Printf("SET transitions fromStateID %d b %d =>  %d", fromStateID, b, toStateID)
 	sb.dfaBuilder.transitions[fromStateID][b] = toStateID
 }
 
@@ -122,26 +111,23 @@ func (sb *Utf8DFAStateBuilder) addTransition(in rune, toStateID uint32) {
 	fromStateID := sb.stateID
 	chars := []byte(string(in))
 	lastByte := chars[len(chars)-1]
-	//	log.Printf("bytes %+v fromStateID %d sb.defaultSuccessor %+v", chars, fromStateID, sb.defaultSuccessor)
+
 	for i, ch := range chars[:len(chars)-1] {
 		remNumBytes := len(chars) - i - 1
 		defaultSuccessor := sb.defaultSuccessor[remNumBytes]
 		intermediateStateID := sb.dfaBuilder.transitions[fromStateID][ch]
 
-		//	log.Printf("intermediateStateID %d defaultSuccessor %d  remNumBytes  %d", intermediateStateID, defaultSuccessor, remNumBytes)
 		if intermediateStateID == defaultSuccessor {
 			intermediateStateID = sb.dfaBuilder.allocate()
-			//	log.Printf("inside intermediateStateID %d ", intermediateStateID)
-			fillTransitions(&sb.dfaBuilder.transitions[intermediateStateID], sb.defaultSuccessor[remNumBytes-1])
+			fillTransitions(&sb.dfaBuilder.transitions[intermediateStateID],
+				sb.defaultSuccessor[remNumBytes-1])
 		}
 
-		//	log.Printf("outside intermediateStateID %d ", intermediateStateID)
 		sb.addTransitionID(fromStateID, ch, intermediateStateID)
 		fromStateID = intermediateStateID
 	}
 
 	toStateIDDecoded := sb.dfaBuilder.getOrAllocate(original(toStateID))
-	//	log.Printf("toStateIDDecoded %d fromStateID %d lastByte %d", toStateIDDecoded, fromStateID, lastByte)
 	sb.addTransitionID(fromStateID, lastByte, toStateIDDecoded)
 }
 
@@ -170,8 +156,8 @@ type Utf8DFABuilder struct {
 func withMaxStates(maxStates uint32) *Utf8DFABuilder {
 	rv := &Utf8DFABuilder{
 		index:        make([]uint32, maxStates*2+100),
-		distances:    make([]Distance, maxStates),
-		transitions:  make([][256]uint32, maxStates),
+		distances:    make([]Distance, 0, maxStates),
+		transitions:  make([][256]uint32, 0, maxStates),
 		maxNumStates: maxStates,
 	}
 
@@ -186,19 +172,8 @@ func (dfab *Utf8DFABuilder) allocate() uint32 {
 	newState := dfab.numStates
 	dfab.numStates++
 
-	if int(newState) >= cap(dfab.distances) {
-		distances := make([]Distance, int(newState)*2)
-		copy(distances, dfab.distances)
-		dfab.distances = distances
-	}
-	dfab.distances[newState] = Atleast{d: 255}
-
-	if int(newState) >= cap(dfab.transitions) {
-		transitions := make([][256]uint32, int(newState)*2)
-		copy(transitions, dfab.transitions)
-		dfab.transitions = transitions
-	}
-	dfab.transitions[newState] = [256]uint32{}
+	dfab.distances = append(dfab.distances, Atleast{d: 255})
+	dfab.transitions = append(dfab.transitions, [256]uint32{})
 
 	return newState
 }
@@ -226,10 +201,10 @@ func (dfab *Utf8DFABuilder) setInitialState(iState uint32) {
 
 func (dfab *Utf8DFABuilder) build(ed uint8) *DFA {
 	return &DFA{
-		transitions:   dfab.transitions,
-		distances:     dfab.distances,
-		initial_state: int(dfab.initialState),
-		ed:            ed,
+		transitions: dfab.transitions,
+		distances:   dfab.distances,
+		initState:   int(dfab.initialState),
+		ed:          ed,
 	}
 }
 
@@ -246,21 +221,19 @@ func (dfab *Utf8DFABuilder) addState(state, default_suc_orig uint32,
 	// creates a chain of states of predecessors of `default_suc_orig`.
 	// Accepting k-bytes (whatever the bytes are) from `predecessor_states[k-1]`
 	// leads to the `default_suc_orig` state.
-
-	predecessorStates := []uint32{defaultSuccID, defaultSuccID, defaultSuccID, defaultSuccID}
+	predecessorStates := []uint32{defaultSuccID,
+		defaultSuccID,
+		defaultSuccID,
+		defaultSuccID}
 
 	for numBytes := uint8(1); numBytes < 4; numBytes++ {
-
 		predecessorState := predecessor(default_suc_orig, numBytes)
 		predecessorStateID := dfab.getOrAllocate(predecessorState)
 		predecessorStates[numBytes] = predecessorStateID
 		succ := predecessorStates[numBytes-1]
-		//log.Printf("transitions predecessor_state_id fiiled %d", predecessorStateID)
 		fillTransitions(&dfab.transitions[predecessorStateID], succ)
 	}
 
-	//log.Printf("transitions stateID fiiled %d", stateID)
-	//transitions := dfab.transitions[stateID]
 	// 1-byte encoded chars.
 	fill(dfab.transitions[stateID][0:192], predecessorStates[0])
 	// 2-bytes encoded chars.
@@ -270,7 +243,6 @@ func (dfab *Utf8DFABuilder) addState(state, default_suc_orig uint32,
 	// 4-bytes encoded chars.
 	fill(dfab.transitions[stateID][240:256], predecessorStates[3])
 
-	//	log.Printf("predecessorStates %+v", predecessorStates)
 	return &Utf8DFAStateBuilder{
 		dfaBuilder:       dfab,
 		stateID:          stateID,

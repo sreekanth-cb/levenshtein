@@ -39,3 +39,7 @@ func NewLevenshteinAutomatonBuilder(maxDistance uint8,
 func (lab *LevenshteinAutomatonBuilder) BuildDfa(query string, fuzziness uint8) *DFA {
 	return lab.pDfa.buildDfa(query, fuzziness, false)
 }
+
+func (lab *LevenshteinAutomatonBuilder) MaxDistance() uint8 {
+	return lab.pDfa.maxDistance
+}
